@@ -24,15 +24,33 @@ canvas{display:block;width:100%;height:100%}
   background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);
   border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.28);
 }
-.brand{padding:14px 18px;min-width:min(100%,280px)}
+.brand{padding:14px 18px;min-width:min(100%,280px);flex:1 1 240px}
 .brand h1{margin:0;font-size:20px;letter-spacing:-.02em}
 .brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
-.usage{padding:12px 16px;min-width:160px}
-.usage strong{display:block;font-size:26px;line-height:1.1}
-.usage span,.usage small{display:block;color:var(--muted);font-size:12px}
-.meter{height:6px;background:rgba(148,163,184,.18);border-radius:999px;margin-top:8px;overflow:hidden}
+.usage{
+  padding:14px 16px;min-width:min(100%,300px);max-width:360px;flex:1 1 280px;
+  border-color:rgba(125,211,252,.45);
+  background:linear-gradient(180deg,rgba(30,58,95,.92),rgba(16,24,40,.88));
+}
+.usage-kicker{
+  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:#7dd3fc;
+}
+.usage-main{display:flex;gap:12px;align-items:center}
+.usage strong{display:block;font-size:34px;line-height:1;letter-spacing:-.03em;min-width:3.2ch}
+.usage-copy{min-width:0}
+.usage-copy span{display:block;color:var(--text);font-size:13px;font-weight:600}
+.usage-copy small,.usage small{display:block;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.35}
+.meter{height:10px;background:rgba(148,163,184,.18);border-radius:999px;margin-top:12px;overflow:hidden}
 .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#818cf8);border-radius:inherit;transition:width .4s ease}
-.feed-pill{position:absolute;top:92px;left:16px;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.usage-bots{margin-top:12px;max-height:150px;overflow:auto;display:grid;gap:8px;padding-right:2px}
+.usage-bots-empty{font-size:12px;color:var(--muted);line-height:1.4}
+.usage-bot{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.usage-bot-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.usage-bot-pct{font-size:12px;color:var(--accent);font-variant-numeric:tabular-nums}
+.usage-bot-meter{grid-column:1 / -1;height:4px;background:rgba(148,163,184,.16);border-radius:999px;overflow:hidden}
+.usage-bot-meter i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#a78bfa);border-radius:inherit}
+.feed-pill{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted);max-width:min(420px,calc(100% - 32px));z-index:6}
 .feed-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--idle)}
 .feed-pill.live .dot{background:var(--good);box-shadow:0 0 0 4px rgba(52,211,153,.18)}
 .feed-pill.offline .dot{background:var(--warn)}
@@ -63,8 +81,12 @@ canvas{display:block;width:100%;height:100%}
 .legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .hint{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.55);border:1px solid var(--line);color:var(--muted);font-size:12px;white-space:nowrap}
 @media (max-width:720px){
-  .topbar{top:10px;left:10px;right:10px}
-  .feed-pill{top:auto;bottom:78px;left:10px}
+  .topbar{top:10px;left:10px;right:10px;gap:10px}
+  .brand{min-width:100%;order:1}
+  .usage{min-width:100%;max-width:none;order:2;padding:14px}
+  .usage strong{font-size:30px}
+  .usage-bots{max-height:120px}
+  .feed-pill{top:auto;bottom:78px;left:10px;right:10px;transform:none;max-width:none}
   .legend{display:none}
   .hint{bottom:12px;font-size:11px;max-width:calc(100% - 24px);white-space:normal;text-align:center}
   .panel{right:10px;bottom:10px;width:calc(100% - 20px)}
@@ -79,12 +101,20 @@ canvas{display:block;width:100%;height:100%}
       <h1>My live office</h1>
       <p>JW team · floors for HQ, QS, Ops, Travel</p>
     </div>
-    <div class="usage">
-      <strong id="total">--</strong>
-      <span>weekly limit used</span>
-      <small id="reset">Waiting for live usage data</small>
-      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
-    </div>
+    <section class="usage" id="usagePanel" aria-labelledby="usageTitle" aria-live="polite">
+      <h2 class="usage-kicker" id="usageTitle">Weekly usage limit</h2>
+      <div class="usage-main">
+        <strong id="total">--</strong>
+        <div class="usage-copy">
+          <span id="usageLabel">Awaiting usage update</span>
+          <small id="reset">No live usage data yet · values appear from the ntfy usage post</small>
+        </div>
+      </div>
+      <div class="meter" id="meterBar" role="progressbar" aria-label="Weekly usage limit used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="meter"></i></div>
+      <div class="usage-bots" id="usageBots">
+        <div class="usage-bots-empty">Per-bot share appears when usage posts arrive</div>
+      </div>
+    </section>
   </div>
   <div id="feedPill" class="feed-pill offline"><span class="dot"></span><span id="feedLabel">Connecting to live feed…</span></div>
   <div class="legend">
@@ -160,7 +190,7 @@ const bots = new Map(DEFAULTS.map(([name, shape, color, group, id]) => [name, {
   share: null
 }]));
 
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c]));
 const stage = document.getElementById('stage');
 const panel = document.getElementById('panel');
 const feedPill = document.getElementById('feedPill');
@@ -498,6 +528,36 @@ function setFeedState(state, message) {
   feedLabel.textContent = message;
 }
 
+function renderUsageShares() {
+  const el = document.getElementById('usageBots');
+  if (!el) return;
+  const rows = [...bots.entries()]
+    .filter(([, b]) => b.share != null && Number.isFinite(Number(b.share)))
+    .sort((a, b) => Number(b[1].share) - Number(a[1].share));
+  if (!rows.length) {
+    el.innerHTML = '<div class="usage-bots-empty">Per-bot share appears when usage posts arrive</div>';
+    return;
+  }
+  el.innerHTML = rows.map(([n, b]) => {
+    const pct = Math.max(0, Number(b.share));
+    const width = Math.max(0, Math.min(100, pct));
+    return '<div class="usage-bot">' +
+      '<span class="usage-bot-name">' + esc(n) + '</span>' +
+      '<span class="usage-bot-pct">' + pct + '%</span>' +
+      '<div class="usage-bot-meter" aria-hidden="true"><i style="width:' + width + '%"></i></div>' +
+      '</div>';
+  }).join('');
+}
+
+function setUsageAwaiting(detail) {
+  document.getElementById('total').textContent = '--';
+  document.getElementById('usageLabel').textContent = 'Awaiting usage update';
+  document.getElementById('reset').textContent = detail || 'No live usage data yet · values appear from the ntfy usage post';
+  document.getElementById('meter').style.width = '0%';
+  document.getElementById('meterBar').setAttribute('aria-valuenow', '0');
+  renderUsageShares();
+}
+
 function openPanel(name) {
   const bot = bots.get(name);
   if (!bot) return;
@@ -579,16 +639,27 @@ function apply(d) {
   }
   if (d.type === 'usage') {
     const pct = Number(d.total_used_pct);
-    document.getElementById('total').textContent = Number.isFinite(pct) ? pct + '%' : '--';
-    document.getElementById('meter').style.width = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) + '%' : '0%';
+    const hasPct = Number.isFinite(pct);
+    document.getElementById('total').textContent = hasPct ? pct + '%' : '--';
+    document.getElementById('usageLabel').textContent = hasPct ? 'of weekly limit used' : 'Awaiting usage update';
+    const bar = hasPct ? Math.max(0, Math.min(100, pct)) : 0;
+    document.getElementById('meter').style.width = bar + '%';
+    document.getElementById('meterBar').setAttribute('aria-valuenow', String(bar));
     if (d.resets_at) {
       try {
         document.getElementById('reset').textContent = 'Resets ' + new Intl.DateTimeFormat('en-HK', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Hong_Kong' }).format(new Date(d.resets_at)) + ' HKT';
       } catch {
         document.getElementById('reset').textContent = 'Resets ' + d.resets_at;
       }
+    } else if (!hasPct) {
+      document.getElementById('reset').textContent = 'No live usage data yet · values appear from the ntfy usage post';
     }
-    for (const [n, v] of Object.entries(d.bots || {})) if (bots.has(n)) bots.get(n).share = v;
+    for (const [n, v] of Object.entries(d.bots || {})) {
+      if (!bots.has(n)) continue;
+      const share = Number(v);
+      bots.get(n).share = Number.isFinite(share) ? share : null;
+    }
+    renderUsageShares();
     if (selected) openPanel(selected);
   }
   if (dirty) {
@@ -603,7 +674,7 @@ async function load() {
   const topic = raw.split('&')[0];
   if (!topic) {
     setFeedState('offline', 'Add #topic to the URL to connect the private feed');
-    document.getElementById('reset').textContent = 'Live feed not configured';
+    setUsageAwaiting('Live feed not configured · add #topic to receive usage');
     return;
   }
   try {
@@ -611,19 +682,27 @@ async function load() {
     if (!r.ok) throw new Error('Feed unavailable');
     const text = await r.text();
     let count = 0;
+    let sawUsage = false;
     for (const line of text.split('\n')) if (line) {
       const m = JSON.parse(line);
-      if (m.event === 'message') try { apply(JSON.parse(m.message)); count++; } catch {}
+      if (m.event === 'message') try {
+        const payload = JSON.parse(m.message);
+        if (payload && payload.type === 'usage') sawUsage = true;
+        apply(payload);
+        count++;
+      } catch {}
     }
     if (count > 0) setFeedState('live', 'Live feed connected · ' + count + ' recent updates');
     else setFeedState('offline', 'Office ready · live data unavailable until ntfy accepts new posts');
+    if (!sawUsage) setUsageAwaiting('Awaiting usage update · ntfy has not posted weekly usage yet');
   } catch (e) {
     setFeedState('offline', 'Live feed temporarily unavailable');
-    document.getElementById('reset').textContent = 'Live feed temporarily unavailable';
+    setUsageAwaiting('Awaiting usage update · live feed temporarily unavailable');
   }
 }
 
 rebuildBuilding();
+renderUsageShares();
 load();
 
 const clock = new THREE.Clock();
