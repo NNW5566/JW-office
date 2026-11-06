@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My live office</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202124;background:#f4f6fa}*{box-sizing:border-box}body{margin:0;padding:28px;max-width:1300px;margin:auto}header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px}h1{margin:0 0 6px;font-size:28px}h2{font-size:14px;letter-spacing:.09em;text-transform:uppercase;color:#697386;margin:0 0 14px}p{margin:0;color:#697386}.usage{padding:14px 18px;background:#fff;border:1px solid #e3e8f0;border-radius:14px;min-width:150px}.usage strong{font-size:25px;display:block}.usage small{display:block;margin-top:4px;color:#697386}.floor{background:#fff;border:1px solid #e3e8f0;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 3px 14px #26334a06}.hq{background:#fff9eb;border-color:#eacb8f}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.bot{position:relative;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e5e9f0;border-radius:12px;background:#fff;min-height:85px;text-decoration:none;color:inherit}.bot:hover{border-color:#aab7cd}.avatar{flex-shrink:0;width:43px;height:43px;display:grid;place-items:center;color:#fff;font-size:19px;font-weight:700}.avatar.orb{border-radius:50%}.avatar.cube{border-radius:8px}.avatar.cone{clip-path:polygon(50% 0,100% 100%,0 100%)}.avatar.bean{border-radius:52% 48% 65% 35% / 37% 55% 45% 63%}.avatar.ghost{border-radius:23px 23px 9px 9px}.avatar.star{clip-path:polygon(50% 0%,61% 34%,98% 34%,68% 55%,79% 92%,50% 70%,21% 92%,32% 55%,2% 34%,39% 34%)}.info{min-width:0}.name{font-size:14px;font-weight:650}.step{font-size:12px;color:#687386;margin-top:5px;line-height:1.4}.dot{width:8px;height:8px;border-radius:50%;background:#adb6c5;position:absolute;right:11px;top:11px}.working{background:#2eaf67}.waiting_user{background:#e09626}.error{background:#d94545}.done{background:#377ed6}.empty{padding:30px;color:#697386}footer{margin-top:20px;font-size:12px;color:#697386;line-height:1.6}.meter{height:5px;background:#e8ecf2;border-radius:3px;margin-top:8px;overflow:hidden}.meter span{display:block;height:100%;background:#5171d8}@media(max-width:600px){body{padding:16px}.floor{padding:15px}}
+</style>
+</head>
+<body>
+<header><div><h1>My live office</h1><p>A quiet window into what the team is doing.</p></div><div class="usage"><strong id="total">--</strong><span>weekly limit used</span><small id="reset">Waiting for live usage data</small></div></header>
+<main id="office"></main>
+<footer>Live statuses come from the private office feed. Open bot cards in Grok Bot. This page does not store credentials.</footer>
+<script>
+const defaults=[
+['Grok Bot','star','F5B82E','HQ','c1c7e974-28da-4902-a8c2-f34814211d83'],
+['Project QS','cube','2D84F5','QS','5550a175-cdc1-4fb2-9f65-c865d1f2817a'],
+['Senior QS','cone','E05252','QS','8029d602-5882-4283-bef4-0b79cb81bfdd'],
+['Commercial Manager','cube','F28C28','QS','e501712d-99eb-448e-b383-96b20af91988'],
+['Garlic · Gmail captain','bean','38B26F','Ops','1fc9d586-f672-4faa-809c-d6db80bb5414'],
+['Chief of Staff','orb','8B5CF6','Ops','5ef8d45f-7def-4a22-8f65-c26c808dd4bd'],
+['New Bot','orb','94A3B8','Ops','6ec3d05d-8f3f-4950-b9dd-0591814836cc'],
+['Teddy','ghost','20B8A6','Travel','bc62157a-db0b-4298-a571-cd7ddabcf92e']];
+const bots=new Map(defaults.map(([name,shape,color,group,id])=>[name,{shape,color,group,id,status:'idle',step:'No status posted yet',share:null}]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(){
+ const teams=[...new Set([...bots.values()].map(b=>b.group))].sort((a,b)=>a==='HQ'?-1:b==='HQ'?1:a.localeCompare(b));
+ document.getElementById('office').innerHTML=teams.map(t=>`<section class="floor ${t==='HQ'?'hq':''}"><h2>${t==='HQ'?'HQ · Top floor':esc(t)}</h2><div class="grid">${[...bots.entries()].filter(([,b])=>b.group===t).map(([n,b])=>`<a class="bot" href="grokbot://app/v1/agent?id=${b.id}"><div class="avatar ${b.shape}" style="background:#${b.color}">${esc(n[0])}</div><div class="info"><div class="name">${esc(n)}</div><div class="step">${esc(b.step)}</div>${b.share!==null?`<div class="meter" title="${b.share}% of this week's bot usage"><span style="width:${Math.min(100,b.share*2.5)}%"></span></div>`:''}</div><span class="dot ${b.status}"></span></a>`).join('')}</div></section>`).join('');
+}
+function apply(d){
+ if(d.roster){const names=new Set(d.roster);for(const n of [...bots.keys()])if(!names.has(n))bots.delete(n);for(const n of d.roster)if(!bots.has(n))bots.set(n,{shape:'orb',color:'8390A5',group:'Ops',id:'',status:'idle',step:'No status posted yet',share:null});}
+ if(d.looks)for(const[n,v]of Object.entries(d.looks)){if(!bots.has(n))bots.set(n,{group:'Ops',id:'',status:'idle',step:'No status posted yet',share:null});if(['orb','cube','cone','star','bean','ghost'].includes(v.shape))bots.get(n).shape=v.shape;if(/^[0-9a-f]{6}$/i.test(v.color))bots.get(n).color=v.color;}
+ if(d.groups)for(const[n,g]of Object.entries(d.groups))if(bots.has(n))bots.get(n).group=g;
+ if(d.chat)for(const[n,u]of Object.entries(d.chat))if(bots.has(n)&&u.startsWith('grokbot://app/v1/agent?id='))bots.get(n).id=u.split('=').at(-1);
+ if(d.bot&&bots.has(d.bot)&&['working','idle','waiting_user','error','done'].includes(d.status)){bots.get(d.bot).status=d.status;bots.get(d.bot).step=String(d.step||'').slice(0,80);}
+ if(d.type==='usage'){document.getElementById('total').textContent=d.total_used_pct+'%';document.getElementById('reset').textContent='Resets '+new Intl.DateTimeFormat('en-HK',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Hong_Kong'}).format(new Date(d.resets_at))+' HKT';for(const[n,v]of Object.entries(d.bots||{}))if(bots.has(n))bots.get(n).share=v;}
+ render();
+}
+async function load(){const topic=location.hash.slice(1);if(!topic)return;try{const r=await fetch('https://ntfy.sh/'+encodeURIComponent(topic)+'/json?poll=1');if(!r.ok)throw Error('Feed unavailable');const text=await r.text();for(const line of text.split('\n'))if(line){const m=JSON.parse(line);if(m.event==='message')try{apply(JSON.parse(m.message))}catch(e){}}}catch(e){document.getElementById('reset').textContent='Live feed temporarily unavailable';}}
+render();load();
+</script>
+</body></html>
