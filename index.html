@@ -442,20 +442,45 @@ function makeFloorPlate(name, index) {
   const partition2 = new THREE.Mesh(new RoundedBoxGeometry(0.06, wallH - 0.2, 2.8, 2, 0.02), glassMat(0xcfe0f2, 0.28));
   partition2.position.set(-3.2, y + wallH / 2 + 0.1, 2.5); g.add(partition2);
 
-  // furniture
+  // furniture sits on this floor slab
+  const fy = y + 0.12;
   const desks = [[-4.6, -2.2], [-2.2, -2.2], [0.4, -2.2], [2.8, -2.2], [5.0, -2.2], [-4.6, 1.6], [-1.8, 1.6], [1.2, 1.6]];
-  desks.forEach(([dx, dz], i) => { if (i % 7 !== 6 || name === 'HQ') g.add(makeDesk(dx, dz)); });
-  g.add(makeLounge(4.4, 2.2));
-  g.add(makeShelf(-5.6, 2.8));
+  desks.forEach(([dx, dz], i) => {
+    if (i % 7 === 6 && name !== 'HQ') return;
+    const desk = makeDesk(dx, dz);
+    desk.position.y = fy;
+    g.add(desk);
+  });
+  const lounge = makeLounge(4.4, 2.2); lounge.position.y = fy; g.add(lounge);
+  const shelf = makeShelf(-5.6, 2.8); shelf.position.y = fy; g.add(shelf);
   if (name === 'HQ' || name === 'Ops') {
     const counter = new THREE.Mesh(new RoundedBoxGeometry(2.2, 0.7, 0.7, 2, 0.08), softMat(0xe9e3d8));
-    counter.position.set(4.8, y + 0.45, -2.6); counter.castShadow = true; g.add(counter);
+    counter.position.set(4.8, fy + 0.35, -2.6); counter.castShadow = true; g.add(counter);
+    for (let i = 0; i < 3; i++) {
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.55, 12), softMat(0x6eb5ff));
+      stool.position.set(3.7 + i * 0.45, fy + 0.28, -1.9); stool.castShadow = true; g.add(stool);
+    }
   }
-  // indoor plant
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.28, 12), softMat(0xd8c5a8));
-  pot.position.set(5.8, y + 0.24, 3.4); g.add(pot);
-  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10), softMat(0x6fad5b));
-  leaf.position.set(5.8, y + 0.7, 3.4); leaf.castShadow = true; g.add(leaf);
+  // corner private office desk
+  const cornerDesk = makeDesk(-5.0, 2.6, Math.PI * 0.15); cornerDesk.position.y = fy; g.add(cornerDesk);
+  // indoor plants
+  [[5.8, 3.4], [-5.8, -3.2], [0, 3.5]].forEach(([px, pz], i) => {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 12), softMat(0xd8c5a8));
+    pot.position.set(px, fy + 0.13, pz); g.add(pot);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.28 + i * 0.04, 12, 10), softMat(0x6fad5b));
+    leaf.position.set(px, fy + 0.55, pz); leaf.castShadow = true; g.add(leaf);
+  });
+  // floor number plaque
+  const plaqueCanvas = document.createElement('canvas'); plaqueCanvas.width = 256; plaqueCanvas.height = 96;
+  const pctx = plaqueCanvas.getContext('2d');
+  pctx.fillStyle = 'rgba(28,25,21,0.72)';
+  pctx.beginPath(); pctx.moveTo(18,0); pctx.arcTo(256,0,256,96,16); pctx.arcTo(256,96,0,96,16); pctx.arcTo(0,96,0,0,16); pctx.arcTo(0,0,256,0,16); pctx.closePath(); pctx.fill();
+  pctx.fillStyle = '#fffaf3'; pctx.font = '700 36px Inter, system-ui, sans-serif';
+  pctx.textAlign = 'center'; pctx.textBaseline = 'middle';
+  pctx.fillText((index + 1) + ' · ' + name, 128, 50);
+  const ptex = new THREE.CanvasTexture(plaqueCanvas); ptex.colorSpace = THREE.SRGBColorSpace;
+  const plaque = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.8), new THREE.MeshBasicMaterial({ map: ptex, transparent: true }));
+  plaque.position.set(-5.5, y + 2.35, 4.5); g.add(plaque);
 
   return g;
 }
@@ -729,12 +754,41 @@ function renderFloorNav() {
 }
 
 function softFocus(floor) {
+  if (buildingRoot) {
+    buildingRoot.children.forEach(ch => {
+      if (!ch.userData || ch.userData.name == null) {
+        // helipad / shaft stay
+        if (floor) {
+          // keep roof visible only for HQ focus mildly
+        }
+        return;
+      }
+      const isFocus = !floor || ch.userData.name === floor;
+      ch.visible = isFocus || !floor;
+      ch.traverse(obj => {
+        if (obj.isMesh && obj.material && obj.material.opacity != null && obj.material.transparent) {
+          // leave glass as-is
+        }
+      });
+      if (floor) ch.visible = ch.userData.name === floor;
+    });
+    // always show helipad when whole building; hide when focusing lower floors
+    buildingRoot.children.forEach(ch => {
+      if (ch.userData && ch.userData.name) return;
+      // non-floor children (helipad, shaft)
+      if (!floor) ch.visible = true;
+      else {
+        const index = FLOOR_ORDER.indexOf(floor);
+        ch.visible = index >= FLOOR_ORDER.length - 1; // roof bits with top floor
+      }
+    });
+  }
   if (!floor) {
-    camGoal.pos.set(22, 18, 22); camGoal.target.set(0, 5.5, 0);
+    camGoal.pos.set(22, 17.5, 22); camGoal.target.set(0, 5.2, 0);
   } else {
     const index = FLOOR_ORDER.indexOf(floor);
-    const y = floorY(Math.max(0, index)) + 1.2;
-    camGoal.pos.set(11, y + 4.5, 12); camGoal.target.set(0, y + 0.4, 0);
+    const y = floorY(Math.max(0, index)) + 0.9;
+    camGoal.pos.set(9.5, y + 3.8, 10.5); camGoal.target.set(0, y + 0.6, 0);
   }
 }
 
