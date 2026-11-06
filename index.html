@@ -1,42 +1,683 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>My live office</title>
+<meta name="description" content="A live 3D office for the JW bot team.">
+<meta name="theme-color" content="#0b1220">
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#202124;background:#f4f6fa}*{box-sizing:border-box}body{margin:0;padding:28px;max-width:1300px;margin:auto}header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px}h1{margin:0 0 6px;font-size:28px}h2{font-size:14px;letter-spacing:.09em;text-transform:uppercase;color:#697386;margin:0 0 14px}p{margin:0;color:#697386}.usage{padding:14px 18px;background:#fff;border:1px solid #e3e8f0;border-radius:14px;min-width:150px}.usage strong{font-size:25px;display:block}.usage small{display:block;margin-top:4px;color:#697386}.floor{background:#fff;border:1px solid #e3e8f0;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 3px 14px #26334a06}.hq{background:#fff9eb;border-color:#eacb8f}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.bot{position:relative;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e5e9f0;border-radius:12px;background:#fff;min-height:85px;text-decoration:none;color:inherit}.bot:hover{border-color:#aab7cd}.avatar{flex-shrink:0;width:43px;height:43px;display:grid;place-items:center;color:#fff;font-size:19px;font-weight:700}.avatar.orb{border-radius:50%}.avatar.cube{border-radius:8px}.avatar.cone{clip-path:polygon(50% 0,100% 100%,0 100%)}.avatar.bean{border-radius:52% 48% 65% 35% / 37% 55% 45% 63%}.avatar.ghost{border-radius:23px 23px 9px 9px}.avatar.star{clip-path:polygon(50% 0%,61% 34%,98% 34%,68% 55%,79% 92%,50% 70%,21% 92%,32% 55%,2% 34%,39% 34%)}.info{min-width:0}.name{font-size:14px;font-weight:650}.step{font-size:12px;color:#687386;margin-top:5px;line-height:1.4}.dot{width:8px;height:8px;border-radius:50%;background:#adb6c5;position:absolute;right:11px;top:11px}.working{background:#2eaf67}.waiting_user{background:#e09626}.error{background:#d94545}.done{background:#377ed6}.empty{padding:30px;color:#697386}footer{margin-top:20px;font-size:12px;color:#697386;line-height:1.6}.meter{height:5px;background:#e8ecf2;border-radius:3px;margin-top:8px;overflow:hidden}.meter span{display:block;height:100%;background:#5171d8}@media(max-width:600px){body{padding:16px}.floor{padding:15px}}
+:root{
+  --bg:#0b1220; --panel:rgba(16,24,40,.82); --line:rgba(148,163,184,.28);
+  --text:#e8eef8; --muted:#93a4bd; --accent:#7dd3fc; --good:#34d399;
+  --warn:#fbbf24; --bad:#f87171; --done:#60a5fa; --idle:#94a3b8;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 20% 0%,#152238 0%,#0b1220 55%,#070b14 100%);color:var(--text);overflow:hidden}
+#stage{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+.hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+.topbar,.panel,.legend,.hint,.feed-pill{pointer-events:auto}
+.topbar{position:absolute;top:16px;left:16px;right:16px;display:flex;gap:12px;justify-content:space-between;align-items:stretch;flex-wrap:wrap}
+.brand,.usage,.panel{
+  background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);
+  border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.28);
+}
+.brand{padding:14px 18px;min-width:min(100%,280px)}
+.brand h1{margin:0;font-size:20px;letter-spacing:-.02em}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.usage{padding:12px 16px;min-width:160px}
+.usage strong{display:block;font-size:26px;line-height:1.1}
+.usage span,.usage small{display:block;color:var(--muted);font-size:12px}
+.meter{height:6px;background:rgba(148,163,184,.18);border-radius:999px;margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#818cf8);border-radius:inherit;transition:width .4s ease}
+.feed-pill{position:absolute;top:92px;left:16px;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.feed-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--idle)}
+.feed-pill.live .dot{background:var(--good);box-shadow:0 0 0 4px rgba(52,211,153,.18)}
+.feed-pill.offline .dot{background:var(--warn)}
+.panel{position:absolute;right:16px;bottom:16px;width:min(360px,calc(100% - 32px));padding:16px 18px;display:none}
+.panel.open{display:block}
+.panel .row{display:flex;gap:12px;align-items:center}
+.avatar-swatch{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.avatar-swatch.orb{border-radius:50%}
+.avatar-swatch.cube{border-radius:10px}
+.avatar-swatch.cone{clip-path:polygon(50% 8%,100% 92%,0 92%);border-radius:0}
+.avatar-swatch.bean{border-radius:60% 40% 55% 45% / 45% 55% 45% 55%}
+.avatar-swatch.ghost{border-radius:18px 18px 8px 8px}
+.avatar-swatch.star{clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.panel h2{margin:0;font-size:16px}
+.panel .meta{margin:2px 0 0;color:var(--muted);font-size:12px}
+.panel .step{margin:12px 0;padding:10px 12px;border-radius:12px;background:rgba(148,163,184,.1);font-size:13px;line-height:1.45;min-height:44px}
+.status-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:rgba(148,163,184,.15);color:var(--muted)}
+.status-chip.working{color:#bbf7d0;background:rgba(52,211,153,.15)}
+.status-chip.waiting_user{color:#fde68a;background:rgba(251,191,36,.15)}
+.status-chip.error{color:#fecaca;background:rgba(248,113,113,.15)}
+.status-chip.done{color:#bfdbfe;background:rgba(96,165,250,.15)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--line);background:rgba(125,211,252,.12);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn:hover{border-color:rgba(125,211,252,.55);background:rgba(125,211,252,.2)}
+.btn.ghost{background:transparent}
+.legend{position:absolute;left:16px;bottom:16px;padding:10px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;max-width:min(420px,calc(100% - 32px))}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.hint{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.55);border:1px solid var(--line);color:var(--muted);font-size:12px;white-space:nowrap}
+@media (max-width:720px){
+  .topbar{top:10px;left:10px;right:10px}
+  .feed-pill{top:auto;bottom:78px;left:10px}
+  .legend{display:none}
+  .hint{bottom:12px;font-size:11px;max-width:calc(100% - 24px);white-space:normal;text-align:center}
+  .panel{right:10px;bottom:10px;width:calc(100% - 20px)}
+}
 </style>
 </head>
 <body>
-<header><div><h1>My live office</h1><p>A quiet window into what the team is doing.</p></div><div class="usage"><strong id="total">--</strong><span>weekly limit used</span><small id="reset">Waiting for live usage data</small></div></header>
-<main id="office"></main>
-<footer>Live statuses come from the private office feed. Open bot cards in Grok Bot. This page does not store credentials.</footer>
-<script>
-const defaults=[
-['Grok Bot','star','F5B82E','HQ','c1c7e974-28da-4902-a8c2-f34814211d83'],
-['Project QS','cube','2D84F5','QS','5550a175-cdc1-4fb2-9f65-c865d1f2817a'],
-['Senior QS','cone','E05252','QS','8029d602-5882-4283-bef4-0b79cb81bfdd'],
-['Commercial Manager','cube','F28C28','QS','e501712d-99eb-448e-b383-96b20af91988'],
-['Garlic · Gmail captain','bean','38B26F','Ops','1fc9d586-f672-4faa-809c-d6db80bb5414'],
-['Chief of Staff','orb','8B5CF6','Ops','5ef8d45f-7def-4a22-8f65-c26c808dd4bd'],
-['New Bot','orb','94A3B8','Ops','6ec3d05d-8f3f-4950-b9dd-0591814836cc'],
-['Teddy','ghost','20B8A6','Travel','bc62157a-db0b-4298-a571-cd7ddabcf92e']];
-const bots=new Map(defaults.map(([name,shape,color,group,id])=>[name,{shape,color,group,id,status:'idle',step:'No status posted yet',share:null}]));
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function render(){
- const teams=[...new Set([...bots.values()].map(b=>b.group))].sort((a,b)=>a==='HQ'?-1:b==='HQ'?1:a.localeCompare(b));
- document.getElementById('office').innerHTML=teams.map(t=>`<section class="floor ${t==='HQ'?'hq':''}"><h2>${t==='HQ'?'HQ · Top floor':esc(t)}</h2><div class="grid">${[...bots.entries()].filter(([,b])=>b.group===t).map(([n,b])=>`<a class="bot" href="grokbot://app/v1/agent?id=${b.id}"><div class="avatar ${b.shape}" style="background:#${b.color}">${esc(n[0])}</div><div class="info"><div class="name">${esc(n)}</div><div class="step">${esc(b.step)}</div>${b.share!==null?`<div class="meter" title="${b.share}% of this week's bot usage"><span style="width:${Math.min(100,b.share*2.5)}%"></span></div>`:''}</div><span class="dot ${b.status}"></span></a>`).join('')}</div></section>`).join('');
+<div id="stage"></div>
+<div class="hud">
+  <div class="topbar">
+    <div class="brand">
+      <h1>My live office</h1>
+      <p>JW team · floors for HQ, QS, Ops, Travel</p>
+    </div>
+    <div class="usage">
+      <strong id="total">--</strong>
+      <span>weekly limit used</span>
+      <small id="reset">Waiting for live usage data</small>
+      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+    </div>
+  </div>
+  <div id="feedPill" class="feed-pill offline"><span class="dot"></span><span id="feedLabel">Connecting to live feed…</span></div>
+  <div class="legend">
+    <span><i style="background:#34d399"></i>working</span>
+    <span><i style="background:#fbbf24"></i>waiting</span>
+    <span><i style="background:#60a5fa"></i>done</span>
+    <span><i style="background:#f87171"></i>error</span>
+    <span><i style="background:#94a3b8"></i>idle</span>
+  </div>
+  <div class="hint">Drag to orbit · scroll to zoom · tap a bot for details</div>
+  <aside id="panel" class="panel" aria-live="polite">
+    <div class="row">
+      <div id="panelAvatar" class="avatar-swatch orb">B</div>
+      <div>
+        <h2 id="panelName">Bot</h2>
+        <div class="meta" id="panelGroup">Floor</div>
+      </div>
+    </div>
+    <div class="step" id="panelStep">No status posted yet</div>
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:12px">
+      <span id="panelStatus" class="status-chip idle">idle</span>
+      <span id="panelShare" class="meta"></span>
+    </div>
+    <div class="actions">
+      <a id="openChat" class="btn" href="#">Open chat</a>
+      <button id="closePanel" class="btn ghost" type="button">Close</button>
+    </div>
+  </aside>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
 }
-function apply(d){
- if(d.roster){const names=new Set(d.roster);for(const n of [...bots.keys()])if(!names.has(n))bots.delete(n);for(const n of d.roster)if(!bots.has(n))bots.set(n,{shape:'orb',color:'8390A5',group:'Ops',id:'',status:'idle',step:'No status posted yet',share:null});}
- if(d.looks)for(const[n,v]of Object.entries(d.looks)){if(!bots.has(n))bots.set(n,{group:'Ops',id:'',status:'idle',step:'No status posted yet',share:null});if(['orb','cube','cone','star','bean','ghost'].includes(v.shape))bots.get(n).shape=v.shape;if(/^[0-9a-f]{6}$/i.test(v.color))bots.get(n).color=v.color;}
- if(d.groups)for(const[n,g]of Object.entries(d.groups))if(bots.has(n))bots.get(n).group=g;
- if(d.chat)for(const[n,u]of Object.entries(d.chat))if(bots.has(n)&&u.startsWith('grokbot://app/v1/agent?id='))bots.get(n).id=u.split('=').at(-1);
- if(d.bot&&bots.has(d.bot)&&['working','idle','waiting_user','error','done'].includes(d.status)){bots.get(d.bot).status=d.status;bots.get(d.bot).step=String(d.step||'').slice(0,80);}
- if(d.type==='usage'){document.getElementById('total').textContent=d.total_used_pct+'%';document.getElementById('reset').textContent='Resets '+new Intl.DateTimeFormat('en-HK',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Hong_Kong'}).format(new Date(d.resets_at))+' HKT';for(const[n,v]of Object.entries(d.bots||{}))if(bots.has(n))bots.get(n).share=v;}
- render();
-}
-async function load(){const topic=location.hash.slice(1);if(!topic)return;try{const r=await fetch('https://ntfy.sh/'+encodeURIComponent(topic)+'/json?poll=1');if(!r.ok)throw Error('Feed unavailable');const text=await r.text();for(const line of text.split('\n'))if(line){const m=JSON.parse(line);if(m.event==='message')try{apply(JSON.parse(m.message))}catch(e){}}}catch(e){document.getElementById('reset').textContent='Live feed temporarily unavailable';}}
-render();load();
 </script>
-</body></html>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const DEFAULTS = [
+  ['Grok Bot', 'star', 'F5B82E', 'HQ', 'c1c7e974-28da-4902-a8c2-f34814211d83'],
+  ['Garlic · Gmail captain', 'bean', '38B26F', 'Ops', '1fc9d586-f672-4faa-809c-d6db80bb5414'],
+  ['Project QS', 'cube', '2D84F5', 'QS', '5550a175-cdc1-4fb2-9f65-c865d1f2817a'],
+  ['Chief of Staff', 'orb', '8B5CF6', 'Ops', '5ef8d45f-7def-4a22-8f65-c26c808dd4bd'],
+  ['Senior QS', 'cone', 'E05252', 'QS', '8029d602-5882-4283-bef4-0b79cb81bfdd'],
+  ['Commercial Manager', 'cube', 'F28C28', 'QS', 'e501712d-99eb-448e-b383-96b20af91988'],
+  ['Teddy', 'ghost', '20B8A6', 'Travel', 'bc62157a-db0b-4298-a571-cd7ddabcf92e'],
+  ['New Bot', 'orb', '94A3B8', 'Ops', '6ec3d05d-8f3f-4950-b9dd-0591814836cc']
+];
+
+const FLOOR_ORDER = ['Travel', 'Ops', 'QS', 'HQ'];
+const FLOOR_COLORS = {
+  HQ: 0xf5d98a,
+  QS: 0x7db7ff,
+  Ops: 0x8ce0b5,
+  Travel: 0x7fd8d0
+};
+const STATUS_COLOR = {
+  working: 0x34d399,
+  idle: 0x94a3b8,
+  waiting_user: 0xfbbf24,
+  error: 0xf87171,
+  done: 0x60a5fa
+};
+
+const bots = new Map(DEFAULTS.map(([name, shape, color, group, id]) => [name, {
+  shape, color, group, id,
+  status: 'idle',
+  step: 'No status posted yet',
+  share: null
+}]));
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const stage = document.getElementById('stage');
+const panel = document.getElementById('panel');
+const feedPill = document.getElementById('feedPill');
+const feedLabel = document.getElementById('feedLabel');
+
+const actorMap = new Map(); // name -> {root, body, glow, label, baseY, phase}
+let selected = null;
+let buildingRoot = null;
+let labelsRoot = null;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0b1220, 0.018);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(18, 16, 18);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 42;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.target.set(0, 6.5, 0);
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xb7c7e0, 0.55));
+const sun = new THREE.DirectionalLight(0xfff2d6, 1.25);
+sun.position.set(12, 24, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 2;
+sun.shadow.camera.far = 60;
+sun.shadow.camera.left = -20;
+sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 24;
+sun.shadow.camera.bottom = -8;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x89b4ff, 0.45);
+fill.position.set(-10, 8, -8);
+scene.add(fill);
+const rim = new THREE.PointLight(0x7dd3fc, 0.55, 40);
+rim.position.set(0, 14, 8);
+scene.add(rim);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(40, 64),
+  new THREE.MeshStandardMaterial({ color: 0x0a1424, roughness: 0.95, metalness: 0.05 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(40, 40, 0x1e2a44, 0x152033);
+grid.position.y = 0.01;
+scene.add(grid);
+
+function glassMat(color = 0x9ec9ff, opacity = 0.18) {
+  return new THREE.MeshPhysicalMaterial({
+    color, metalness: 0.05, roughness: 0.05, transmission: 0.72,
+    transparent: true, opacity, thickness: 0.6, roughnessTransmission: 0.35,
+    clearcoat: 0.8, clearcoatRoughness: 0.15, side: THREE.DoubleSide
+  });
+}
+
+function mat(color, opts = {}) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness: opts.roughness ?? 0.35, metalness: opts.metalness ?? 0.2,
+    emissive: opts.emissive ?? 0x000000, emissiveIntensity: opts.emissiveIntensity ?? 0
+  });
+}
+
+function makeStarGeometry() {
+  const shape = new THREE.Shape();
+  const spikes = 5, outer = 0.55, inner = 0.24;
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.28, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
+  geo.center();
+  return geo;
+}
+
+function botGeometry(shape) {
+  switch (shape) {
+    case 'cube': return new RoundedBoxGeometry(0.9, 0.9, 0.9, 4, 0.18);
+    case 'cone': return new THREE.ConeGeometry(0.55, 1.05, 24);
+    case 'bean': return new THREE.CapsuleGeometry(0.34, 0.55, 8, 16);
+    case 'ghost': {
+      const g = new THREE.SphereGeometry(0.52, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.72);
+      return g;
+    }
+    case 'star': return makeStarGeometry();
+    case 'orb':
+    default: return new THREE.SphereGeometry(0.52, 32, 24);
+  }
+}
+
+function makeDesk(x, z) {
+  const group = new THREE.Group();
+  const top = new THREE.Mesh(new RoundedBoxGeometry(1.6, 0.08, 0.9, 2, 0.03), mat(0xd7dee8, { roughness: 0.4 }));
+  top.position.y = 0.72; top.castShadow = true; top.receiveShadow = true; group.add(top);
+  const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.7, 10);
+  const legMat = mat(0x8b95a8, { metalness: 0.6, roughness: 0.25 });
+  [[-0.65, -0.3], [0.65, -0.3], [-0.65, 0.3], [0.65, 0.3]].forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(legGeo, legMat);
+    leg.position.set(lx, 0.35, lz); leg.castShadow = true; group.add(leg);
+  });
+  const monitor = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.42, 0.05, 2, 0.02), mat(0x1f2937, { metalness: 0.4, roughness: 0.3 }));
+  monitor.position.set(0, 1.05, -0.15); group.add(monitor);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.58, 0.32), mat(0x38bdf8, { emissive: 0x0ea5e9, emissiveIntensity: 0.55, roughness: 0.2 }));
+  screen.position.set(0, 1.05, -0.12); group.add(screen);
+  const chair = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.12, 0.5, 2, 0.04), mat(0x334155));
+  chair.position.set(0, 0.42, 0.85); chair.castShadow = true; group.add(chair);
+  const back = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.55, 0.08, 2, 0.04), mat(0x334155));
+  back.position.set(0, 0.72, 1.08); group.add(back);
+  group.position.set(x, 0, z);
+  return group;
+}
+
+function makeFloorSlab(name, y, index) {
+  const g = new THREE.Group();
+  g.name = name;
+  const tint = FLOOR_COLORS[name] || 0x9ec9ff;
+  const slab = new THREE.Mesh(new RoundedBoxGeometry(12, 0.28, 8.5, 3, 0.08), mat(0x1a2438, { roughness: 0.55, metalness: 0.15 }));
+  slab.position.y = y; slab.receiveShadow = true; slab.castShadow = true; g.add(slab);
+
+  const glass = new THREE.Mesh(new RoundedBoxGeometry(11.6, 2.2, 8.1, 2, 0.05), glassMat(tint, 0.12));
+  glass.position.y = y + 1.25; g.add(glass);
+
+  const rimMat = mat(tint, { metalness: 0.35, roughness: 0.25, emissive: tint, emissiveIntensity: 0.08 });
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(12.1, 0.08, 0.08), rimMat);
+  rail.position.set(0, y + 0.25, 4.25); g.add(rail);
+  const rail2 = rail.clone(); rail2.position.z = -4.25; g.add(rail2);
+  const rail3 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 8.5), rimMat);
+  rail3.position.set(6.05, y + 0.25, 0); g.add(rail3);
+  const rail4 = rail3.clone(); rail4.position.x = -6.05; g.add(rail4);
+
+  // floor label plate
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.fillStyle = 'rgba(8,15,28,0.55)';
+  roundRect(ctx, 24, 28, 464, 72, 18); ctx.fill();
+  ctx.fillStyle = '#e8eef8';
+  ctx.font = '700 42px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(name === 'HQ' ? 'HQ · Top floor' : name, 256, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  label.position.set(-3.5, y + 2.55, 4.55);
+  g.add(label);
+
+  // furniture grid
+  const seats = [[-3.8, -2.2], [-1.3, -2.2], [1.3, -2.2], [3.8, -2.2], [-3.8, 1.8], [-1.3, 1.8], [1.3, 1.8], [3.8, 1.8]];
+  seats.forEach(([x, z], i) => {
+    if (i % 3 === 0 || name === 'HQ') g.add(makeDesk(x, z));
+    else if (i % 2 === 0) g.add(makeDesk(x, z));
+  });
+
+  // column cores
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 2.5, 16), mat(0xcbd5e1, { metalness: 0.5, roughness: 0.2 }));
+  col.position.set(-5.2, y + 1.35, -3.5); col.castShadow = true; g.add(col);
+  const col2 = col.clone(); col2.position.set(5.2, y + 1.35, -3.5); g.add(col2);
+  const col3 = col.clone(); col3.position.set(-5.2, y + 1.35, 3.5); g.add(col3);
+  const col4 = col.clone(); col4.position.set(5.2, y + 1.35, 3.5); g.add(col4);
+
+  g.userData = { y, index, name };
+  return g;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function makeCore() {
+  const core = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.35, 14.5, 32), mat(0x24344f, { metalness: 0.45, roughness: 0.3 }));
+  shaft.position.y = 7.2; shaft.castShadow = true; core.add(shaft);
+  const glow = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.42, 14.5, 32), glassMat(0x7dd3fc, 0.08));
+  glow.position.y = 7.2; core.add(glow);
+  const base = new THREE.Mesh(new RoundedBoxGeometry(4.2, 0.5, 4.2, 2, 0.08), mat(0x1e293b));
+  base.position.y = 0.25; base.receiveShadow = true; core.add(base);
+  return core;
+}
+
+function makeBotActor(name, bot) {
+  const root = new THREE.Group();
+  root.userData.botName = name;
+  const color = new THREE.Color('#' + bot.color);
+  const bodyMat = mat(color, { metalness: 0.25, roughness: 0.28, emissive: color, emissiveIntensity: 0.12 });
+  const geo = botGeometry(bot.shape);
+  const body = new THREE.Mesh(geo, bodyMat);
+  body.castShadow = true;
+  if (bot.shape === 'star') body.rotation.x = -Math.PI / 2;
+  if (bot.shape === 'ghost') body.position.y = 0.15;
+  body.position.y = 0.55;
+  root.add(body);
+
+  // eyes
+  const eyeMat = mat(0xffffff, { roughness: 0.2 });
+  const pupilMat = mat(0x0f172a);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), eyeMat);
+  const eyeR = eyeL.clone();
+  eyeL.position.set(-0.14, 0.68, 0.42); eyeR.position.set(0.14, 0.68, 0.42);
+  const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), pupilMat);
+  const pupilR = pupilL.clone();
+  pupilL.position.set(-0.14, 0.68, 0.49); pupilR.position.set(0.14, 0.68, 0.49);
+  root.add(eyeL, eyeR, pupilL, pupilR);
+
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7, 16, 16),
+    new THREE.MeshBasicMaterial({ color: STATUS_COLOR[bot.status] || STATUS_COLOR.idle, transparent: true, opacity: 0.12 })
+  );
+  glow.position.y = 0.55;
+  root.add(glow);
+
+  // name sprite
+  const label = makeNameSprite(name);
+  label.position.y = 1.45;
+  root.add(label);
+
+  const hit = new THREE.Mesh(
+    new THREE.SphereGeometry(0.85, 8, 8),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  hit.position.y = 0.55;
+  hit.userData.botName = name;
+  root.add(hit);
+
+  return { root, body, glow, label, hit, baseY: 0, phase: Math.random() * Math.PI * 2, shape: bot.shape };
+}
+
+function makeNameSprite(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const draw = (t) => {
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.fillStyle = 'rgba(8,15,28,0.72)';
+    roundRect(ctx, 16, 12, 224, 40, 12); ctx.fill();
+    ctx.fillStyle = '#e8eef8';
+    ctx.font = '600 18px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = t.length > 18 ? t.slice(0, 17) + '…' : t;
+    ctx.fillText(label, 128, 33);
+  };
+  draw(text);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sprite.scale.set(1.8, 0.45, 1);
+  sprite.userData.redraw = (t) => { draw(t); tex.needsUpdate = true; };
+  return sprite;
+}
+
+function floorY(index) {
+  return 1.2 + index * 3.35;
+}
+
+function rebuildBuilding() {
+  if (buildingRoot) {
+    scene.remove(buildingRoot);
+    buildingRoot.traverse(o => {
+      if (o.geometry) o.geometry.dispose?.();
+      if (o.material) {
+        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose?.());
+        else o.material.dispose?.();
+      }
+    });
+  }
+  actorMap.clear();
+  buildingRoot = new THREE.Group();
+  buildingRoot.add(makeCore());
+
+  const teams = [...new Set([...bots.values()].map(b => b.group))];
+  const floors = FLOOR_ORDER.filter(t => teams.includes(t)).concat(teams.filter(t => !FLOOR_ORDER.includes(t)).sort());
+  floors.forEach((name, index) => {
+    const y = floorY(index);
+    buildingRoot.add(makeFloorSlab(name, y, index));
+    const members = [...bots.entries()].filter(([, b]) => b.group === name);
+    const cols = Math.min(4, Math.max(1, members.length));
+    members.forEach(([botName, bot], i) => {
+      const actor = makeBotActor(botName, bot);
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const x = (col - (cols - 1) / 2) * 2.4;
+      const z = row === 0 ? 1.15 : -1.6;
+      actor.root.position.set(x, y + 0.28, z);
+      actor.baseY = actor.root.position.y;
+      actor.root.userData.homeX = x;
+      buildingRoot.add(actor.root);
+      actorMap.set(botName, actor);
+      updateActorStatus(botName);
+    });
+  });
+  scene.add(buildingRoot);
+  controls.target.set(0, floorY(Math.max(0, floors.length - 1)) * 0.55 + 2, 0);
+}
+
+function updateActorStatus(name) {
+  const bot = bots.get(name);
+  const actor = actorMap.get(name);
+  if (!bot || !actor) return;
+  const c = STATUS_COLOR[bot.status] || STATUS_COLOR.idle;
+  actor.glow.material.color.setHex(c);
+  actor.glow.material.opacity = bot.status === 'waiting_user' ? 0.28 : bot.status === 'working' ? 0.2 : 0.1;
+  if (actor.body.material.emissive) {
+    actor.body.material.emissiveIntensity = bot.status === 'working' ? 0.28 : bot.status === 'error' ? 0.35 : 0.12;
+  }
+}
+
+function setFeedState(state, message) {
+  feedPill.classList.remove('live', 'offline');
+  feedPill.classList.add(state);
+  feedLabel.textContent = message;
+}
+
+function openPanel(name) {
+  const bot = bots.get(name);
+  if (!bot) return;
+  selected = name;
+  panel.classList.add('open');
+  document.getElementById('panelName').textContent = name;
+  document.getElementById('panelGroup').textContent = (bot.group === 'HQ' ? 'HQ · Top floor' : bot.group + ' floor');
+  document.getElementById('panelStep').textContent = bot.step || 'No status posted yet';
+  const st = document.getElementById('panelStatus');
+  st.textContent = bot.status.replace('_', ' ');
+  st.className = 'status-chip ' + bot.status;
+  const av = document.getElementById('panelAvatar');
+  av.className = 'avatar-swatch ' + bot.shape;
+  av.style.background = '#' + bot.color;
+  av.textContent = name.trim().charAt(0).toUpperCase();
+  document.getElementById('panelShare').textContent = bot.share == null ? '' : (bot.share + '% of weekly bot usage');
+  const link = document.getElementById('openChat');
+  if (bot.id) {
+    link.href = 'grokbot://app/v1/agent?id=' + bot.id;
+    link.style.display = '';
+  } else {
+    link.removeAttribute('href');
+    link.style.display = 'none';
+  }
+}
+
+function closePanel() {
+  selected = null;
+  panel.classList.remove('open');
+}
+
+document.getElementById('closePanel').addEventListener('click', closePanel);
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+function pick(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = [];
+  for (const [, actor] of actorMap) hits.push(actor.hit);
+  const found = raycaster.intersectObjects(hits, false)[0];
+  if (found?.object?.userData?.botName) openPanel(found.object.userData.botName);
+  else closePanel();
+}
+renderer.domElement.addEventListener('pointerdown', e => {
+  renderer.domElement.dataset.downX = e.clientX;
+  renderer.domElement.dataset.downY = e.clientY;
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  const dx = Math.abs(e.clientX - Number(renderer.domElement.dataset.downX || 0));
+  const dy = Math.abs(e.clientY - Number(renderer.domElement.dataset.downY || 0));
+  if (dx < 5 && dy < 5) pick(e.clientX, e.clientY);
+});
+
+function apply(d) {
+  let dirty = false;
+  if (d.roster) {
+    const names = new Set(d.roster);
+    for (const n of [...bots.keys()]) if (!names.has(n)) bots.delete(n);
+    for (const n of d.roster) if (!bots.has(n)) bots.set(n, { shape: 'orb', color: '8390A5', group: 'Ops', id: '', status: 'idle', step: 'No status posted yet', share: null });
+    dirty = true;
+  }
+  if (d.looks) for (const [n, v] of Object.entries(d.looks)) {
+    if (!bots.has(n)) bots.set(n, { group: 'Ops', id: '', status: 'idle', step: 'No status posted yet', share: null, shape: 'orb', color: '8390A5' });
+    if (['orb', 'cube', 'cone', 'star', 'bean', 'ghost'].includes(v.shape)) bots.get(n).shape = v.shape;
+    const color = String(v.color || '').replace('#', '');
+    if (/^[0-9a-f]{6}$/i.test(color)) bots.get(n).color = color;
+    dirty = true;
+  }
+  if (d.groups) for (const [n, g] of Object.entries(d.groups)) if (bots.has(n)) { bots.get(n).group = g; dirty = true; }
+  if (d.chat) for (const [n, u] of Object.entries(d.chat)) if (bots.has(n) && String(u).startsWith('grokbot://app/v1/agent?id=')) bots.get(n).id = String(u).split('=').at(-1);
+  if (d.bot && bots.has(d.bot) && ['working', 'idle', 'waiting_user', 'error', 'done'].includes(d.status)) {
+    bots.get(d.bot).status = d.status;
+    bots.get(d.bot).step = String(d.step || 'No status posted yet').slice(0, 80) || 'No status posted yet';
+    updateActorStatus(d.bot);
+    if (selected === d.bot) openPanel(d.bot);
+  }
+  if (d.type === 'usage') {
+    const pct = Number(d.total_used_pct);
+    document.getElementById('total').textContent = Number.isFinite(pct) ? pct + '%' : '--';
+    document.getElementById('meter').style.width = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) + '%' : '0%';
+    if (d.resets_at) {
+      try {
+        document.getElementById('reset').textContent = 'Resets ' + new Intl.DateTimeFormat('en-HK', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Hong_Kong' }).format(new Date(d.resets_at)) + ' HKT';
+      } catch {
+        document.getElementById('reset').textContent = 'Resets ' + d.resets_at;
+      }
+    }
+    for (const [n, v] of Object.entries(d.bots || {})) if (bots.has(n)) bots.get(n).share = v;
+    if (selected) openPanel(selected);
+  }
+  if (dirty) {
+    rebuildBuilding();
+    if (selected && bots.has(selected)) openPanel(selected);
+    else closePanel();
+  }
+}
+
+async function load() {
+  const raw = location.hash.slice(1);
+  const topic = raw.split('&')[0];
+  if (!topic) {
+    setFeedState('offline', 'Add #topic to the URL to connect the private feed');
+    document.getElementById('reset').textContent = 'Live feed not configured';
+    return;
+  }
+  try {
+    const r = await fetch('https://ntfy.sh/' + encodeURIComponent(topic) + '/json?poll=1');
+    if (!r.ok) throw new Error('Feed unavailable');
+    const text = await r.text();
+    let count = 0;
+    for (const line of text.split('\n')) if (line) {
+      const m = JSON.parse(line);
+      if (m.event === 'message') try { apply(JSON.parse(m.message)); count++; } catch {}
+    }
+    if (count > 0) setFeedState('live', 'Live feed connected · ' + count + ' recent updates');
+    else setFeedState('offline', 'Office ready · live data unavailable until ntfy accepts new posts');
+  } catch (e) {
+    setFeedState('offline', 'Live feed temporarily unavailable');
+    document.getElementById('reset').textContent = 'Live feed temporarily unavailable';
+  }
+}
+
+rebuildBuilding();
+load();
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  for (const [name, actor] of actorMap) {
+    const bot = bots.get(name);
+    if (!bot) continue;
+    const phase = actor.phase;
+    let y = actor.baseY;
+    let spin = 0;
+    if (bot.status === 'working') {
+      y += Math.sin(t * 4 + phase) * 0.08;
+      actor.body.rotation.y = Math.sin(t * 2 + phase) * 0.25;
+      actor.glow.scale.setScalar(1 + Math.sin(t * 5 + phase) * 0.08);
+    } else if (bot.status === 'waiting_user') {
+      y += Math.sin(t * 2.2 + phase) * 0.12;
+      actor.glow.material.opacity = 0.18 + (Math.sin(t * 3 + phase) * 0.5 + 0.5) * 0.2;
+      actor.glow.scale.setScalar(1.05 + Math.sin(t * 3 + phase) * 0.12);
+    } else if (bot.status === 'error') {
+      actor.root.position.x = actor.root.userData.homeX ?? actor.root.position.x;
+      if (actor.root.userData.homeX == null) actor.root.userData.homeX = actor.root.position.x;
+      actor.root.position.x = actor.root.userData.homeX + Math.sin(t * 18 + phase) * 0.05;
+      actor.body.rotation.z = Math.sin(t * 18 + phase) * 0.12;
+    } else if (bot.status === 'done') {
+      y += 0.04;
+      actor.body.rotation.y = t * 0.4 + phase;
+      actor.glow.scale.setScalar(1.05);
+    } else {
+      y += Math.sin(t * 1.2 + phase) * 0.03;
+      actor.body.rotation.y = Math.sin(t * 0.6 + phase) * 0.15;
+      actor.glow.scale.setScalar(1);
+    }
+    if (bot.status !== 'error') {
+      if (actor.root.userData.homeX != null) actor.root.position.x = actor.root.userData.homeX;
+      actor.body.rotation.z = 0;
+    }
+    actor.root.position.y = y;
+    if (actor.shape === 'star') actor.body.rotation.x = -Math.PI / 2;
+  }
+  if (buildingRoot) buildingRoot.rotation.y = Math.sin(t * 0.05) * 0.03;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+addEventListener('hashchange', () => { load(); });
+</script>
+</body>
+</html>
